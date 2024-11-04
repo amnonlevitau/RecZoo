@@ -62,6 +62,9 @@ def data_param_prepare(config_file):
     max_epoch = config.getint('Model', 'max_epoch')
     params['max_epoch'] = max_epoch
 
+    matrix_factorization_loss = config.getboolean('Model', 'matrix_factorization_loss')
+    params['matrix_factorization_loss'] = matrix_factorization_loss
+
     params['enable_tensorboard'] = config.getboolean('Model', 'enable_tensorboard')
 
     initial_weight = config.getfloat('Model', 'initial_weight')
@@ -99,6 +102,8 @@ def data_param_prepare(config_file):
     params['lambda_i'] = lambda_i
     lambda_u = config.getfloat('Training', 'lambda_u')
     params['lambda_u'] = lambda_u
+    lambda_mf = config.getfloat('Training', 'lambda_mf')
+    params['lambda_mf'] = lambda_mf
     sampling_sift_pos = config.getboolean('Training', 'sampling_sift_pos')
     params['sampling_sift_pos'] = sampling_sift_pos
 
@@ -312,6 +317,7 @@ class UltraGCN(nn.Module):
         self.gamma = params['gamma']
         self.lambda_i = params['lambda_i']
         self.lambda_u = params['lambda_u']
+        self.lambda_mf = params['lambda_mf']
 
         self.user_embeds = nn.Embedding(self.user_num, self.embedding_dim)
         self.item_embeds = nn.Embedding(self.item_num, self.embedding_dim)
@@ -398,6 +404,16 @@ class UltraGCN(nn.Module):
         # loss = loss.sum(-1)
         return loss.sum()
 
+
+    def cal_loss_mf(self, users, pos_items):
+        user_embeds = self.user_embeds(users)
+        pos_embeds = self.item_embeds(pos_items)
+
+        # Mean squared error between user embeddings and item embeddings
+        mf_loss = torch.mean((user_embeds - pos_embeds) ** 2)
+        return mf_loss
+
+
     def norm_loss(self):
         loss = 0.0
         for parameter in self.parameters():
@@ -412,6 +428,8 @@ class UltraGCN(nn.Module):
         loss += self.lambda_i * self.cal_loss_I(users, pos_items)
         if self.is_uu:
             loss += self.lambda_u * self.cal_loss_U(pos_items, users)  # users=pos_users, so maybe items=pos_items
+        if self.lambda_mf != 0:
+            loss += self.lambda_mf * self.cal_loss_mf(users, pos_items)
         return loss
 
     def test_foward(self, users):
