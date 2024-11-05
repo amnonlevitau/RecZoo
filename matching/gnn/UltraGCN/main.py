@@ -328,6 +328,7 @@ class UltraGCN(nn.Module):
         self.uu_constraint_mat = uu_constraint_mat
         self.uu_neighbor_mat = uu_neighbor_mat
         self.is_uu = uu_neighbor_mat is not None
+        self.add_mf_loss = params['matrix_factorization_loss']
 
         self.initial_weight = params['initial_weight']
         self.initial_weights()
@@ -428,7 +429,7 @@ class UltraGCN(nn.Module):
         loss += self.lambda_i * self.cal_loss_I(users, pos_items)
         if self.is_uu:
             loss += self.lambda_u * self.cal_loss_U(pos_items, users)  # users=pos_users, so maybe items=pos_items
-        if self.lambda_mf != 0:
+        if self.add_mf_loss:
             loss += self.lambda_mf * self.cal_loss_mf(users, pos_items)
         return loss
 
